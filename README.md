@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pawlytics
+
+Dog health passport and preventative care platform. Track vaccinations, organize medical records, manage preventative care schedules, and share a digital health passport with vets, boarding facilities, or caregivers.
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router, Turbopack)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Database**: PostgreSQL
+- **ORM**: Prisma v7
+- **Auth**: Auth.js (next-auth v5)
+- **Storage**: AWS S3 (presigned URLs)
+- **Validation**: Zod
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- PostgreSQL running locally (or a remote instance)
+- (Optional) AWS S3 bucket for document uploads
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment
+
+Copy `.env` and fill in your values:
+
+```bash
+cp .env .env.local
+```
+
+Required variables:
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `AUTH_SECRET` | Random secret (min 32 chars). Generate with `openssl rand -base64 32` |
+| `AUTH_URL` | App URL (e.g., `http://localhost:3000`) |
+| `AWS_REGION` | AWS region for S3 |
+| `AWS_ACCESS_KEY_ID` | AWS access key |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key |
+| `S3_BUCKET_NAME` | S3 bucket name |
+
+### 3. Set up database
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 4. Generate Prisma client
+
+```bash
+npx prisma generate
+```
+
+### 5. Start development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/              # Next.js App Router pages and API routes
+│   ├── (auth)/       # Login/signup (centered card layout)
+│   ├── (app)/        # Authenticated pages (navbar layout)
+│   ├── passport/     # Public shareable passport
+│   └── api/          # API routes (auth, documents)
+├── actions/          # Server actions (dogs, care, vaccinations, etc.)
+├── components/       # React components
+│   ├── ui/           # Design system primitives
+│   ├── layout/       # Navbar, page header
+│   ├── dogs/         # Dog profile components
+│   ├── care/         # Preventative care components
+│   ├── vaccinations/ # Vaccination tracking
+│   ├── documents/    # Document management
+│   └── passport/     # Shareable passport
+├── lib/              # Core libraries
+│   ├── auth.ts       # Auth.js configuration
+│   ├── prisma.ts     # Database client
+│   ├── s3.ts         # AWS S3 helpers
+│   ├── care-rules.ts # Preventative care rules engine
+│   ├── care-scheduler.ts # Care event generator
+│   ├── breeds.ts     # Breed data (size, traits)
+│   ├── validations.ts # Zod schemas
+│   └── utils.ts      # Shared utilities
+└── types/            # TypeScript type definitions
+```
 
-## Learn More
+## Key Features
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Dog Profiles**: Create and manage profiles for multiple dogs
+- **Smart Care Plans**: Auto-generated preventative care schedules based on breed, age, and traits
+- **Vaccination Tracking**: Log vaccines with expiration and booster date tracking
+- **Document Management**: Upload medical documents (PDFs, images) via S3
+- **Shareable Passport**: Generate public read-only links to share health summaries
