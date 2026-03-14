@@ -4,10 +4,19 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DogProfileSwitcher } from "@/components/dashboard/dog-profile-switcher";
 import { formatDogAge, formatRelativeDate } from "@/lib/utils";
 import { getDogDisplayImage } from "@/lib/dog-images";
 
-export default async function DashboardPage() {
+type SearchParams = Promise<{ dog?: string }>;
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const selectedDogId = params.dog;
   const session = await auth();
   const userName = session?.user?.name?.split(" ")[0] || "there";
 
@@ -28,7 +37,10 @@ export default async function DashboardPage() {
   });
 
   const now = new Date();
-  const activeDog = dogs[0];
+  const activeDog =
+    selectedDogId && dogs.some((d) => d.id === selectedDogId)
+      ? dogs.find((d) => d.id === selectedDogId)!
+      : dogs[0];
   const activeDogImage = activeDog
     ? getDogDisplayImage(activeDog.imageUrl, activeDog.breed)
     : null;
@@ -73,6 +85,11 @@ export default async function DashboardPage() {
 
   return (
     <>
+      <DogProfileSwitcher
+        dogs={dogs.map((d) => ({ id: d.id, name: d.name, imageUrl: d.imageUrl, breed: d.breed }))}
+        activeDogId={activeDog.id}
+      />
+
       {/* Greeting row */}
       <div className="mb-8 flex items-center justify-between">
         <div>
