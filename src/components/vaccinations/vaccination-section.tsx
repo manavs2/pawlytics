@@ -2,20 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Syringe, Bug, Heart, FileText, Pencil } from "lucide-react";
+import { Plus, Syringe, Bug, Heart, FileText, Pencil, ShieldCheck, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { VaccinationForm } from "./vaccination-form";
 import { formatDate } from "@/lib/utils";
 import { deleteVaccination } from "@/actions/vaccinations";
-import type { Vaccination } from "@/generated/prisma/client";
+import type { Vaccination, Document } from "@/generated/prisma/client";
 
 type Category = "all" | "vaccines" | "flea_tick" | "heartworm";
 
+type VaccinationWithProof = Vaccination & { proofDocument?: Document | null };
+
 interface VaccinationSectionProps {
   dogId: string;
-  vaccinations: Vaccination[];
+  vaccinations: VaccinationWithProof[];
 }
 
 const CATEGORIES: { id: Category; label: string; icon: React.ReactNode }[] = [
@@ -33,7 +35,7 @@ export function VaccinationSection({
   const [activeCategory, setActiveCategory] = useState<Category>("all");
   const router = useRouter();
 
-  function getStatus(vax: Vaccination) {
+  function getStatus(vax: VaccinationWithProof) {
     if (!vax.expirationDate) return "valid";
     const now = new Date();
     const exp = new Date(vax.expirationDate);
@@ -43,7 +45,7 @@ export function VaccinationSection({
     return "valid";
   }
 
-  function filterByCategory(vax: Vaccination) {
+  function filterByCategory(vax: VaccinationWithProof) {
     if (activeCategory === "all") return true;
     const name = vax.name.toLowerCase();
     if (activeCategory === "vaccines") {
@@ -61,6 +63,14 @@ export function VaccinationSection({
     expiring_soon: <Badge variant="warning">Expiring Soon</Badge>,
     overdue: <Badge variant="danger">Overdue</Badge>,
   };
+
+  async function handleDownloadProof(documentId: string) {
+    const res = await fetch(`/api/documents/${documentId}/download-url`);
+    if (res.ok) {
+      const { downloadUrl } = await res.json();
+      window.open(downloadUrl, "_blank");
+    }
+  }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this vaccination record?")) return;
@@ -165,11 +175,17 @@ export function VaccinationSection({
                         <div className="absolute left-0 top-0 h-full w-1 rounded-l-[20px] bg-danger-600" />
                       )}
                       <div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           <h4 className="font-[family-name:var(--font-heading)] text-lg font-bold text-text">
                             {vax.name}
                           </h4>
                           {statusBadge[status]}
+                          {vax.proofDocumentId && (
+                            <Badge variant="info" className="flex items-center gap-1">
+                              <ShieldCheck className="h-3 w-3" />
+                              Verified
+                            </Badge>
+                          )}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted">
                           <span className="flex items-center gap-1.5">
@@ -195,6 +211,16 @@ export function VaccinationSection({
                           <p className="mt-1 text-sm text-muted">
                             by {vax.veterinarian}
                           </p>
+                        )}
+                        {vax.proofDocument && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadProof(vax.proofDocument!.id)}
+                            className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-700"
+                          >
+                            <Download className="h-4 w-4" />
+                            View proof
+                          </button>
                         )}
                       </div>
                     </div>

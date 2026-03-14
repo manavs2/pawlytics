@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { FileText, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,8 +33,23 @@ export function VaccinationForm({
   const [error, setError] = useState("");
   const [selectedRecord, setSelectedRecord] = useState("");
   const [customName, setCustomName] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    setSelectedRecord("");
+    setCustomName("");
+  }, [activeCategory]);
 
   const isOtherSelected = OTHER_OPTIONS.includes(selectedRecord);
+
+  const ALLOWED_PROOF_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ];
+  const MAX_PROOF_SIZE = 10 * 1024 * 1024; // 10MB
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,6 +67,53 @@ export function VaccinationForm({
       return;
     }
 
+    let proof: { s3Key: string; name: string; fileSize: number; mimeType: string } | undefined;
+    if (proofFile) {
+      if (!ALLOWED_PROOF_TYPES.includes(proofFile.type)) {
+        setError("Proof must be PDF, JPG, PNG, or WebP.");
+        setLoading(false);
+        return;
+      }
+      if (proofFile.size > MAX_PROOF_SIZE) {
+        setError("Proof file must be under 10MB.");
+        setLoading(false);
+        return;
+      }
+      try {
+        const urlRes = await fetch("/api/documents/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: proofFile.name,
+            fileType: proofFile.type,
+            dogId,
+          }),
+        });
+        if (!urlRes.ok) {
+          const d = await urlRes.json();
+          setError(d.error || "Failed to upload proof.");
+          setLoading(false);
+          return;
+        }
+        const { uploadUrl, s3Key } = await urlRes.json();
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: proofFile,
+          headers: { "Content-Type": proofFile.type },
+        });
+        if (!uploadRes.ok) {
+          setError("Proof upload failed. Please try again.");
+          setLoading(false);
+          return;
+        }
+        proof = { s3Key, name: proofFile.name, fileSize: proofFile.size, mimeType: proofFile.type };
+      } catch {
+        setError("Something went wrong uploading proof.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const result = await createVaccination(dogId, {
       name: recordName,
       dateAdministered: formData.get("dateAdministered") as string,
@@ -59,6 +122,7 @@ export function VaccinationForm({
       veterinarian: (formData.get("veterinarian") as string) || undefined,
       lotNumber: (formData.get("lotNumber") as string) || undefined,
       notes: (formData.get("notes") as string) || undefined,
+      proof,
     });
 
     if (result?.error) {
@@ -163,6 +227,36 @@ export function VaccinationForm({
             name="lotNumber"
             placeholder="Optional"
           />
+        </div>
+        <div>
+          <label className="mb-1.5 block font-[family-name:var(--font-body)] text-[13px] font-bold uppercase tracking-[0.5px] text-muted">
+            Add Proof (Optional)
+          </label>
+          <p className="mb-2 text-sm text-muted">
+            Upload a photo or scan of the certificate. PDF, JPG, PNG, or WebP up to 10MB.
+            You can always add proof later in the Documents section.
+          </p>
+          <div className="flex items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 rounded-2xl border-2 border-dashed border-border bg-primary-50/30 px-4 py-3 transition-colors hover:border-primary hover:bg-primary-50/50">
+              <Upload className="h-5 w-5 text-primary" />
+              <span className="text-[15px] font-bold text-text">
+                {proofFile ? "Change file" : "Choose file"}
+              </span>
+              <input
+                name="proof"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                className="sr-only"
+              />
+            </label>
+            {proofFile && (
+              <span className="flex items-center gap-1.5 text-sm text-muted">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate max-w-[180px]">{proofFile.name}</span>
+              </span>
+            )}
+          </div>
         </div>
         <Textarea label="Notes" name="notes" placeholder="Any additional notes..." />
 

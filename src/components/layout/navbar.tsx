@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PawPrint, Bell, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { PawPrint, Bell, Menu, X, ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+
+interface DogOption {
+  id: string;
+  name: string;
+}
 
 interface NavbarProps {
   userName?: string | null;
   activeDogId?: string | null;
+  dogs?: DogOption[];
 }
 
 const NAV_ITEMS = [
   { label: "Dashboard", slug: null },
+  { label: "My Dogs", slug: "my-dogs" },     // special: /dogs
   { label: "Care Plan", slug: "" },          // /dogs/[id]
   { label: "Health Records", slug: "health-records" },
   { label: "Documents", slug: "documents" },
@@ -25,9 +32,21 @@ function getDogIdFromPath(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
-export function Navbar({ userName, activeDogId }: NavbarProps) {
+export function Navbar({ userName, activeDogId, dogs = [] }: NavbarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dogSwitcherOpen, setDogSwitcherOpen] = useState(false);
+  const dogSwitcherRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dogSwitcherRef.current && !dogSwitcherRef.current.contains(e.target as Node)) {
+        setDogSwitcherOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // If we're already on a dog page, use that dog's id so all nav links stay on the same dog.
   const urlDogId = getDogIdFromPath(pathname);
@@ -35,16 +54,17 @@ export function Navbar({ userName, activeDogId }: NavbarProps) {
 
   function getHref(item: (typeof NAV_ITEMS)[number]) {
     if (item.slug === null) return "/dashboard";
+    if (item.slug === "my-dogs") return "/dogs";
     if (!effectiveDogId) return "/dashboard";
     return item.slug === "" ? `/dogs/${effectiveDogId}` : `/dogs/${effectiveDogId}/${item.slug}`;
   }
 
   function isActive(item: (typeof NAV_ITEMS)[number]) {
     if (item.slug === null) return pathname === "/dashboard";
+    if (item.slug === "my-dogs") return pathname === "/dogs";
     if (!effectiveDogId) return false;
     const base = `/dogs/${effectiveDogId}`;
     if (item.slug === "") {
-      // Care Plan is only active on the exact dog root, not sub-pages
       return pathname === base;
     }
     return pathname === `${base}/${item.slug}`;
@@ -64,6 +84,48 @@ export function Navbar({ userName, activeDogId }: NavbarProps) {
             Pawlytics
           </span>
         </Link>
+
+        {dogs.length > 1 && (
+          <div ref={dogSwitcherRef} className="relative hidden md:block">
+            <button
+              onClick={() => setDogSwitcherOpen(!dogSwitcherOpen)}
+              className="flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-text transition-colors hover:bg-gray-50"
+              aria-expanded={dogSwitcherOpen}
+              aria-haspopup="listbox"
+            >
+              {dogs.find((d) => d.id === effectiveDogId)?.name ?? dogs[0]?.name ?? "Switch dog"}
+              <ChevronDown className={cn("h-4 w-4 text-muted transition-transform", dogSwitcherOpen && "rotate-180")} />
+            </button>
+            {dogSwitcherOpen && (
+              <div
+                className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-border bg-surface py-1 shadow-lg"
+                role="listbox"
+              >
+                {dogs.map((dog) => (
+                  <Link
+                    key={dog.id}
+                    href={`/dogs/${dog.id}`}
+                    onClick={() => setDogSwitcherOpen(false)}
+                    className={cn(
+                      "block px-3 py-2 text-sm font-medium transition-colors",
+                      dog.id === effectiveDogId ? "bg-primary-50 text-primary" : "text-text hover:bg-gray-50"
+                    )}
+                    role="option"
+                  >
+                    {dog.name}
+                  </Link>
+                ))}
+                <Link
+                  href="/dogs"
+                  onClick={() => setDogSwitcherOpen(false)}
+                  className="block border-t border-border px-3 py-2 text-sm font-medium text-muted hover:bg-gray-50"
+                >
+                  View all dogs
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
         <nav className="hidden items-center gap-8 md:flex">
           {NAV_ITEMS.map((item) => (
@@ -107,6 +169,34 @@ export function Navbar({ userName, activeDogId }: NavbarProps) {
 
       {mobileOpen && (
         <div className="border-t border-border bg-surface px-6 py-4 md:hidden">
+          {dogs.length > 1 && (
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Switch dog</p>
+              <div className="flex flex-col gap-1">
+                {dogs.map((dog) => (
+                  <Link
+                    key={dog.id}
+                    href={`/dogs/${dog.id}`}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "rounded-lg px-3 py-2 text-sm font-medium",
+                      dog.id === effectiveDogId ? "bg-primary-50 text-primary" : "text-text"
+                    )}
+                  >
+                    {dog.name}
+                  </Link>
+                ))}
+                <Link
+                  href="/dogs"
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm text-muted"
+                >
+                  View all dogs
+                </Link>
+              </div>
+              <div className="my-4 border-t border-border" />
+            </div>
+          )}
           <div className="flex flex-col gap-4">
             {NAV_ITEMS.map((item) => (
               <Link

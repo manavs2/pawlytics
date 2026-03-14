@@ -106,6 +106,8 @@ model Vaccination {
   veterinarian     String?
   lotNumber        String?
   notes            String?
+  proofDocumentId  String?   @unique
+  proofDocument    Document? @relation("VaccinationProof", fields: [proofDocumentId], references: [id], onDelete: SetNull)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -113,15 +115,16 @@ model Vaccination {
 }
 
 model Document {
-  id         String   @id @default(cuid())
-  dogId      String
-  dog        Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  name       String
-  type       String
-  s3Key      String
-  fileSize   Int?
-  mimeType   String?
-  uploadedAt DateTime @default(now())
+  id                String       @id @default(cuid())
+  dogId             String
+  dog               Dog          @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  name              String
+  type              String
+  s3Key             String
+  fileSize          Int?
+  mimeType          String?
+  uploadedAt        DateTime     @default(now())
+  proofForVaccination Vaccination? @relation("VaccinationProof")
 
   @@index([dogId])
 }

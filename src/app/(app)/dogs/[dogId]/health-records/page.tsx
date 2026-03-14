@@ -15,7 +15,10 @@ export default async function DogHealthRecordsPage({ params }: Props) {
   const dog = await prisma.dog.findUnique({
     where: { id: dogId },
     include: {
-      vaccinations: { orderBy: { dateAdministered: "desc" } },
+      vaccinations: {
+        orderBy: { dateAdministered: "desc" },
+        include: { proofDocument: true },
+      },
     },
   });
 

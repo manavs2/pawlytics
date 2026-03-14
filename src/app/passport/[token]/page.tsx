@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { PawPrint, Syringe, CalendarCheck, Shield } from "lucide-react";
+import { PawPrint, Syringe, CalendarCheck, Shield, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,10 @@ export default async function PassportPage({ params }: PassportPageProps) {
     include: {
       dog: {
         include: {
-          vaccinations: { orderBy: { dateAdministered: "desc" } },
+          vaccinations: {
+            orderBy: { dateAdministered: "desc" },
+            include: { proofDocument: true },
+          },
           careEvents: {
             where: { completedAt: { not: null } },
             orderBy: { completedAt: "desc" },
@@ -117,9 +120,17 @@ export default async function PassportPage({ params }: PassportPageProps) {
             ) : (
               <div className="divide-y divide-border">
                 {dog.vaccinations.map((vax) => (
-                  <div key={vax.id} className="flex items-center justify-between py-4">
+                  <div key={vax.id} className="flex items-center justify-between gap-4 py-4">
                     <div>
-                      <p className="font-semibold text-text">{vax.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-text">{vax.name}</p>
+                        {vax.proofDocumentId && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent">
+                            <ShieldCheck className="h-3 w-3" />
+                            Verified
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted">
                         {formatDate(new Date(vax.dateAdministered))}
                         {vax.veterinarian && ` · ${vax.veterinarian}`}

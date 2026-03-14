@@ -14,6 +14,7 @@ export async function createVaccination(
     veterinarian?: string;
     lotNumber?: string;
     notes?: string;
+    proof?: { s3Key: string; name: string; fileSize?: number; mimeType?: string };
   }
 ) {
   const session = await auth();
@@ -26,6 +27,21 @@ export async function createVaccination(
 
   if (!data.name || !data.dateAdministered) {
     return { error: "Vaccine name and date are required." };
+  }
+
+  let proofDocumentId: string | null = null;
+  if (data.proof?.s3Key && data.proof?.name) {
+    const doc = await prisma.document.create({
+      data: {
+        dogId,
+        name: data.proof.name,
+        type: "vaccine_certificate",
+        s3Key: data.proof.s3Key,
+        fileSize: data.proof.fileSize ?? null,
+        mimeType: data.proof.mimeType ?? null,
+      },
+    });
+    proofDocumentId = doc.id;
   }
 
   await prisma.vaccination.create({
@@ -42,6 +58,7 @@ export async function createVaccination(
       veterinarian: data.veterinarian || null,
       lotNumber: data.lotNumber || null,
       notes: data.notes || null,
+      proofDocumentId,
     },
   });
 

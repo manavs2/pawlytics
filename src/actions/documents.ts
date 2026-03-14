@@ -13,6 +13,7 @@ export async function createDocumentRecord(
     s3Key: string;
     fileSize?: number;
     mimeType?: string;
+    vaccinationId?: string;
   }
 ) {
   const session = await auth();
@@ -23,7 +24,7 @@ export async function createDocumentRecord(
     return { error: "Dog not found." };
   }
 
-  await prisma.document.create({
+  const doc = await prisma.document.create({
     data: {
       dogId,
       name: data.name,
@@ -33,6 +34,18 @@ export async function createDocumentRecord(
       mimeType: data.mimeType || null,
     },
   });
+
+  if (data.vaccinationId && data.type === "vaccine_certificate") {
+    const vaccination = await prisma.vaccination.findFirst({
+      where: { id: data.vaccinationId, dogId },
+    });
+    if (vaccination && !vaccination.proofDocumentId) {
+      await prisma.vaccination.update({
+        where: { id: data.vaccinationId },
+        data: { proofDocumentId: doc.id },
+      });
+    }
+  }
 
   revalidatePath(`/dogs/${dogId}`);
   return { success: true };

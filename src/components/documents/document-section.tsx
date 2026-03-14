@@ -19,15 +19,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/utils";
-import { createDocumentRecord, deleteDocument } from "@/actions/documents";
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from "@/types";
-import type { Document } from "@/generated/prisma/client";
+import { createDocumentRecord, deleteDocument } from "@/actions/documents";
+import type { Document, Vaccination } from "@/generated/prisma/client";
 
 type DocFilter = "all" | DocumentType;
 
 interface DocumentSectionProps {
   dogId: string;
   documents: Document[];
+  vaccinationsWithoutProof?: Vaccination[];
 }
 
 const FILTER_PILLS: { id: DocFilter; label: string }[] = [
@@ -47,8 +48,14 @@ const FILE_ICON_COLORS: Record<string, string> = {
   "image/webp": "bg-accent-50 text-accent",
 };
 
-export function DocumentSection({ dogId, documents }: DocumentSectionProps) {
+export function DocumentSection({
+  dogId,
+  documents,
+  vaccinationsWithoutProof = [],
+}: DocumentSectionProps) {
   const [showUpload, setShowUpload] = useState(false);
+  const [docType, setDocType] = useState("");
+  const [linkToVaccinationId, setLinkToVaccinationId] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -71,6 +78,10 @@ export function DocumentSection({ dogId, documents }: DocumentSectionProps) {
     const formData = new FormData(e.currentTarget);
     const file = formData.get("file") as File;
     const docType = formData.get("docType") as string;
+    const vaccinationId =
+      docType === "vaccine_certificate" && linkToVaccinationId
+        ? linkToVaccinationId
+        : undefined;
 
     if (!file || !docType) {
       setError("Please select a file and document type.");
@@ -122,9 +133,12 @@ export function DocumentSection({ dogId, documents }: DocumentSectionProps) {
         s3Key,
         fileSize: file.size,
         mimeType: file.type,
+        vaccinationId,
       });
 
       setShowUpload(false);
+      setDocType("");
+      setLinkToVaccinationId("");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
@@ -192,7 +206,29 @@ export function DocumentSection({ dogId, documents }: DocumentSectionProps) {
                 options={typeOptions}
                 placeholder="Select type"
                 required
+                value={docType}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDocType(val);
+                  if (val !== "vaccine_certificate") setLinkToVaccinationId("");
+                }}
               />
+              {docType === "vaccine_certificate" &&
+                vaccinationsWithoutProof.length > 0 && (
+                <Select
+                  label="Link to vaccination (optional)"
+                  name="linkToVaccination"
+                  options={[
+                    { value: "", label: "Don't link" },
+                    ...vaccinationsWithoutProof.map((v) => ({
+                      value: v.id,
+                      label: `${v.name} — ${formatDate(new Date(v.dateAdministered))}`,
+                    })),
+                  ]}
+                  value={linkToVaccinationId}
+                  onChange={(e) => setLinkToVaccinationId(e.target.value)}
+                />
+              )}
               <Input
                 label="File"
                 name="file"

@@ -16,6 +16,10 @@ export default async function DogDocumentsPage({ params }: Props) {
     where: { id: dogId },
     include: {
       documents: { orderBy: { uploadedAt: "desc" } },
+      vaccinations: {
+        orderBy: { dateAdministered: "desc" },
+        where: { proofDocumentId: null },
+      },
     },
   });
 
@@ -24,7 +28,11 @@ export default async function DogDocumentsPage({ params }: Props) {
   return (
     <div className="space-y-8">
       <DogProfileHeader dog={dog} />
-      <DocumentSection dogId={dog.id} documents={dog.documents} />
+      <DocumentSection
+        dogId={dog.id}
+        documents={dog.documents}
+        vaccinationsWithoutProof={dog.vaccinations}
+      />
     </div>
   );
 }
